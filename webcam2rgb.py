@@ -1,46 +1,42 @@
-import cv2
-import numpy as np
+import os
+import fcntl
+import mmap
+import struct
 import threading
 
-class Webcam2rgb():
+class Webcam2rgb:
+    def __init__(self):
+        self.device = "/dev/video0"
+        self.fmt = struct.pack("HH", 640, 480)  # Set the resolution here
+        self.fmt += b"YUYV"
+        self.fd = os.open(self.device, os.O_RDWR)
+        self.map = mmap.mmap(self.fd, os.fstat(self.fd).st_size, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
 
-    def start(self, callback, cameraNumber=0, width=None, height=None, fps=None, directShow=False):
+    def start(self, callback, width=None, height=None, fps=None):
         self.callback = callback
-        try:
-            self.cam = cv2.VideoCapture(cameraNumber + cv2.CAP_DSHOW if directShow else cv2.CAP_ANY)
-            if not self.cam.isOpened():
-                print('opening camera')
-                self.cam.open(0)
-                
-            if width:
-                self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            if height:
-                self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            if fps:
-                self.cam.set(cv2.CAP_PROP_FPS, fps)
-            self.running = True
-            self.thread = threading.Thread(target=self.calc_BGR)
-            self.thread.start()
-            self.ret_val = True
-        except:
-            self.running = False
-            self.ret_val = False
+        self.width = width
+        self.height = height
+        self.fps = fps
+        self.running = True
+        self.thread = threading.Thread(target=self._read_frames)
+        self.thread.start()
 
     def stop(self):
         self.running = False
         self.thread.join()
 
-    def calc_BGR(self):
+    def _read_frames(self):
         while self.running:
             try:
-                self.ret_val = False
-                self.ret_val, img = self.cam.read()
-                if self.ret_val:
-                    h, w, c = img.shape
-                    bgr = img[int(h/2), int(w/2)]
-                    self.callback(self.ret_val, bgr, img)
-            except:
-                self.running = False
+                fcntl.ioctl(self.fd, 0x80685600, self.fmt)  # VIDIOC_S_FMT
+                frame = self.map[:640*480*2]
+                self.map.seek(0)
+                frame = np.frombuffer(frame, dtype=np.uint8)
+                frame = frame.reshape((480, 640, 2))[:, :, 0]  # Extract Y channel
+                self.callback(True, frame)
+            except Exception as e:
+                print("Error:", e)
+                self.callback(False, None)
 
     def cameraFs(self):
-        return self.cam.get(cv2.CAP_PROP_FPS)
+        return self.fps
