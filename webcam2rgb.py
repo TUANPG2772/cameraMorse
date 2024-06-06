@@ -1,7 +1,7 @@
 import cv2
 import threading
 import numpy as np
-
+# thay roi
 class Webcam2rgb:
     def __init__(self):
         self.device = 0  # Sử dụng camera mặc định
