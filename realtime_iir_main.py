@@ -1,6 +1,7 @@
 import realtime_plot_window
 import webcam2rgb
 import time
+import numpy as np
 
 if __name__ == "__main__":
     # Initialize Realtime window containing graph, filter, and decoder
