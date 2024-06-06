@@ -1,21 +1,26 @@
-import os
-import fcntl
-import mmap
-import struct
+import cv2
 import threading
+import numpy as np
 
 class Webcam2rgb:
     def __init__(self):
-        self.device = "/dev/video0"
-        self.fmt = struct.pack("HH", 640, 480)  # Set the resolution here
-        self.fmt += b"YUYV"
-        self.fd = os.open(self.device, os.O_RDWR)
-        self.map = mmap.mmap(self.fd, os.fstat(self.fd).st_size, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
+        self.device = 0  # Sử dụng camera mặc định
+        self.width = 640
+        self.height = 480
+        self.cap = cv2.VideoCapture(self.device, cv2.CAP_V4L2)
+        if not self.cap.isOpened():
+            raise Exception("Could not open video device")
+
+        # Đặt độ phân giải cho camera
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
 
     def start(self, callback, width=None, height=None, fps=None):
         self.callback = callback
-        self.width = width
-        self.height = height
+        self.width = width if width else self.width
+        self.height = height if height else self.height
         self.fps = fps
         self.running = True
         self.thread = threading.Thread(target=self._read_frames)
@@ -24,19 +29,18 @@ class Webcam2rgb:
     def stop(self):
         self.running = False
         self.thread.join()
+        self.cap.release()
 
     def _read_frames(self):
         while self.running:
-            try:
-                fcntl.ioctl(self.fd, 0x80685600, self.fmt)  # VIDIOC_S_FMT
-                frame = self.map[:640*480*2]
-                self.map.seek(0)
-                frame = np.frombuffer(frame, dtype=np.uint8)
-                frame = frame.reshape((480, 640, 2))[:, :, 0]  # Extract Y channel
-                self.callback(True, frame)
-            except Exception as e:
-                print("Error:", e)
-                self.callback(False, None)
+            ret, frame = self.cap.read()
+            if not ret:
+                print("Error: Could not read frame")
+                self.callback(False, None, None)
+                continue
+
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_YUYV)
+            self.callback(True, frame_rgb, frame)
 
     def cameraFs(self):
-        return self.fps
+        return self.cap.get(cv2.CAP_PROP_FPS)
