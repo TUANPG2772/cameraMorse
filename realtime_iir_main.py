@@ -1,7 +1,6 @@
 import realtime_plot_window
 import webcam2rgb
 import time
-import numpy as np
 
 if __name__ == "__main__":
     # Initialize Realtime window containing graph, filter, and decoder
@@ -14,6 +13,8 @@ if __name__ == "__main__":
             luminance = (0.2126 * data[:, :, 2]) + (0.7152 * data[:, :, 1]) + (0.0722 * data[:, :, 0])
             # Pass signal and frame to realtime window
             realTimeWindow.addData(luminance, frame)
+            cv2.imshow("Frame", frame)  # Hiển thị frame qua cv2.imshow
+            cv2.waitKey(1)  # Chờ một lát để frame hiển thị
         else:
             print("Error: No data received from camera")
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     realTimeWindow.decoder.timerStart = time.time()
     camera.start(callback=hasData)
     print("Camera Sample Rate: ", camera.cameraFs(), "Hz")
-    realtime_plot_window.plt.show()
+    realTimeWindow.show()  # Hiển thị cửa sổ của RealtimeWindow
     camera.stop()
 
     # Debug
