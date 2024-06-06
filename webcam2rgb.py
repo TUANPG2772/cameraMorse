@@ -23,6 +23,7 @@ class Webcam2rgb:
     def stop(self):
         self.running = False
         self.cap.release()
+        cv2.destroyAllWindows()
 
     def _read_frames(self):
         while self.running:
@@ -34,6 +35,21 @@ class Webcam2rgb:
 
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Sử dụng COLOR_BGR2RGB nếu FOURCC là MJPG
             self.callback(True, frame_rgb, frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.stop()
+                break
 
     def cameraFs(self):
         return self.cap.get(cv2.CAP_PROP_FPS)
+
+# Ví dụ callback function để kiểm tra
+def frame_callback(success, frame_rgb, frame):
+    if success:
+        print("Frame received")
+        cv2.imshow("Frame", frame_rgb)
+    else:
+        print("No frame received")
+
+# Khởi tạo và bắt đầu camera
+camera = Webcam2rgb()
+camera.start(frame_callback)
