@@ -50,6 +50,6 @@ def frame_callback(success, frame_rgb, frame):
     else:
         print("No frame received")
 
-# Khởi tạo và bắt đầu camera
+# init camera
 #camera = Webcam2rgb()
 #camera.start(frame_callback)
