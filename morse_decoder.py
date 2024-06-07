@@ -4,7 +4,7 @@ Created on Fri Nov 13 20:19:10 2020
 
 @author: Kamil
 """
-
+import numpy as np
 class MorseCodeDecoder():
     
     def __init__(self):
@@ -52,7 +52,7 @@ class MorseCodeDecoder():
         if (self.totalSampleCount >= 150):
             
             # Phát hiện đỉnh dương - đèn bật
-            if( sample > self.posAmplitudeThreshold and not self.posPeakFlag ):
+            if np.any(sample > self.posAmplitudeThreshold) and not self.posPeakFlag:
                 self.posPeakFlag = True
                 # Nếu tín hiệu thấp đủ lâu để không phải là khoảng cách giữa các chữ cái
                 if( self.nSamplesLow >= 20):
