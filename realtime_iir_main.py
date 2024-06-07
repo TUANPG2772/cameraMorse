@@ -19,6 +19,9 @@ if __name__ == "__main__":
     # Start the thread and stop it when we close the plot windows
     realTimeWindow.decoder.timerStart = time.time()
     
+    camera = Webcam2rgb()
+    camera.start(frame_callback)
+    
     # Start camera without cameraNumber argument
     camera.start(callback=hasData)
     print("Camera Sample Rate: ", camera.cameraFs(), "Hz")
