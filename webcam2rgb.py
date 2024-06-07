@@ -3,27 +3,26 @@ import numpy as np
 import threading
 
 class Webcam2rgb():
-
     def start(self, callback, cameraNumber=0, width=None, height=None, fps=None):
         self.callback = callback
         try:
-            self.cam = cv2.VideoCapture(cameraNumber)  # Use default camera
+            self.cam = cv2.VideoCapture(cameraNumber, cv2.CAP_V4L2) 
             if not self.cam.isOpened():
-                print('Opening camera')
-                self.cam.open(cameraNumber)
-
+                print('opening camera')
+                self.cam.open(cameraNumber, cv2.CAP_V4L2)
+                
             if width:
                 self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             if height:
                 self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             if fps:
                 self.cam.set(cv2.CAP_PROP_FPS, fps)
-                
             self.running = True
-            self.thread = threading.Thread(target=self.calc_BRG)
+            self.thread = threading.Thread(target=self.calc_BGR)
             self.thread.start()
             self.ret_val = True
-        except:
+        except Exception as e:
+            print(f"Error: {e}")
             self.running = False
             self.ret_val = False
 
@@ -31,16 +30,17 @@ class Webcam2rgb():
         self.running = False
         self.thread.join()
 
-    def calc_BRG(self):
+    def calc_BGR(self):
         while self.running:
             try:
+                self.ret_val = False
                 self.ret_val, img = self.cam.read()
-                if not self.ret_val:
-                    continue
-                h, w, c = img.shape
-                brg = img[int(h / 2), int(w / 2)]
-                self.callback(self.ret_val, brg)
-            except:
+                if self.ret_val:
+                    h, w, c = img.shape
+                    bgr = img[int(h/2), int(w/2)]
+                    self.callback(self.ret_val, bgr)
+            except Exception as e:
+                print(f"Error in calc_BGR: {e}")
                 self.running = False
 
     def cameraFs(self):
