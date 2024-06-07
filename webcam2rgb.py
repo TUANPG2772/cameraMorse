@@ -1,32 +1,48 @@
 import cv2
+import numpy as np
 
-class Webcam2rgb:
-    def __init__(self):
-        self.cap = None
-        self.running = False
+import threading
 
-    def start(self, callback, cameraNumber=0):
-        self.cap = cv2.VideoCapture(cameraNumber, cv2.CAP_V4L2)
-        if not self.cap.isOpened():
-            print("Error: Could not open video capture")
-            return
 
-        # Điều chỉnh các tham số như độ phân giải, FPS, và codec
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 680)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 680)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
 
-        self.running = True
-        while self.running:
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Error: Could not read frame")
-                break
-            # Chuyển frame sang callback
-            callback(ret, frame)
+class Webcam2rgb():
+
+    def start(self, callback, cameraNumber=0, width = None, height = None, fps = None, directShow = False):
+        self.callback = callback
+        try:
+            self.cam = cv2.VideoCapture(cameraNumber + cv2.CAP_DSHOW if directShow else cv2.CAP_ANY) 
+            if not self.cam.isOpened():
+                print('opening camera')
+                self.cam.open(0)
+                
+            if width:
+                self.cam.set(cv2.CAP_PROP_FRAME_WIDTH,width)
+            if height:
+                self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
+            if fps:
+                self.cam.set(cv2.CAP_PROP_FPS, fps)
+            self.running = True
+            self.thread = threading.Thread(target = self.calc_BRG)
+            self.thread.start()
+            self.ret_val = True
+        except:
+            self.running = False
+            self.ret_val = False
 
     def stop(self):
         self.running = False
-        if self.cap is not None:
-            self.cap.release()
+        self.thread.join()
+
+    def calc_BRG(self):
+        while self.running:
+            try:
+                self.ret_val = False
+                self.ret_val, img = self.cam.read()
+                h, w, c = img.shape
+                brg = img[int(h/2),int(w/2)]
+                self.callback(self.ret_val,brg)
+            except:
+                self.running = False
+
+    def cameraFs(self):
+        return self.cam.get(cv2.CAP_PROP_FPS)
