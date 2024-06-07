@@ -1,37 +1,47 @@
-import multiprocessing
-import time
 import realtime_plot_window
 import webcam2rgb
+import time
 
-def main():
-    # Initialize Realtime window containing graph, filter, and decoder
+        
+if __name__ == "__main__":
+
+    # Initialize Pealtime window Containt graph, filter and decoder
     realTimeWindow = realtime_plot_window.RealtimeWindow("Morse Decoder")
         
     # Create callback method reading camera and plotting in windows
-    def hasData(retval, data, frame):
+    def hasData(retval, data):
         # Calculate brightness b = data[0],  g = data[1], r = data[2]
-        luminance = (0.2126 * data[2]) + (0.7152 * data[1]) + (0.0722 * data[0])
-        # Pass signal and frame to realtime window
-        realTimeWindow.addData(luminance, frame)
+        luminance = ( (0.2126*data[2]) + (0.7152*data[1]) + (0.0722*data[0]) )
+        # Pass signal to realtime window
+        realTimeWindow.addData(luminance)
+        
+    # def hasData(retval, data):     
+    #     #Measure SampleTime
+    #     if 10 >= (time.time() - realTimeWindow.decoder.timerStart):
+    #         realTimeWindow.decoder.SamplingTimerCounter += 1
+    #     #Measure jitter
+    #     if (1/30) > (time.time() - realTimeWindow.decoder.timerStart):
+    #         realTimeWindow.decoder.nSamplesLate += 1
+    #     realTimeWindow.decoder.timerStart = time.time()
 
+        
     # Create instances of camera
     camera = webcam2rgb.Webcam2rgb()
     # Start the thread and stop it when we close the plot windows
     realTimeWindow.decoder.timerStart = time.time()
-    camera.start(callback=hasData)
+    camera.start(callback = hasData, cameraNumber=0)
     print("Camera Sample Rate: ", camera.cameraFs(), "Hz")
-    
-    # Keep the main process running while the plot window is displayed
-    while True:
-        time.sleep(1)
-
-if __name__ == "__main__":
-    # Start the main process in a separate process
-    main_process = multiprocessing.Process(target=main)
-    main_process.start()
-    
-    # Display the plot window
     realtime_plot_window.plt.show()
+    camera.stop()
+
+    # Debug
+    #print('\n Time Pos-to-Neg Peak:')  
+    #print(realTimeWindow.decoder.nSamplesBetwenPosNegPeakList)
+    timeElapsed = time.time() - realTimeWindow.decoder.timerStart
+    print('\n Measured Sampling Rate: ' + str(realTimeWindow.decoder.totalSampleCount / timeElapsed))
     
-    # Wait for the main process to finish
-    main_process.join()
+    # Print Sequences
+    print('\nSequence Detected:')  
+    print(realTimeWindow.decoder.morseSequence)
+    print('\nDecoded Morse Code Sequence: '+ realTimeWindow.decoder.decodedLetters )
+ 
