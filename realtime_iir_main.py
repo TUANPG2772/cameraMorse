@@ -7,19 +7,19 @@ if __name__ == "__main__":
     realTimeWindow = realtime_plot_window.RealtimeWindow("Morse Decoder")
         
     # Create callback method reading camera and plotting in windows
-    def hasData(retval, data):
+    def hasData(retval, frame):
         if retval:
-            # Calculate brightness b = data[0], g = data[1], r = data[2]
-            luminance = (0.2126 * data[2]) + (0.7152 * data[1]) + (0.0722 * data[0])
+            # Calculate brightness b = frame[0], g = frame[1], r = frame[2]
+            luminance = (0.2126 * frame[:,:,2]) + (0.7152 * frame[:,:,1]) + (0.0722 * frame[:,:,0])
             # Pass signal to realtime window
-            realTimeWindow.addData(luminance)
+            realTimeWindow.addData(luminance.mean())
         
     # Create instances of camera
     camera = webcam2rgb.Webcam2rgb()
     # Start the thread and stop it when we close the plot windows
     realTimeWindow.decoder.timerStart = time.time()
     camera.start(callback=hasData, cameraNumber=0)
-    print("Camera Sample Rate: ", camera.cameraFs(), "Hz")
+    print("Camera Sample Rate: ", camera.cap.get(cv2.CAP_PROP_FPS), "Hz")
     realtime_plot_window.plt.show()
     camera.stop()
 
