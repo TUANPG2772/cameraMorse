@@ -12,7 +12,7 @@ class Webcam2rgb:
         # Đặt độ phân giải cho camera
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        self.cap.set(cv2.CAP_PROP_FPS, 15)
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # Đặt FOURCC thành MJPG
 
     def start(self, callback, width=None, height=None, fps=None):
