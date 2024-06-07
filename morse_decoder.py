@@ -4,114 +4,120 @@ Created on Fri Nov 13 20:19:10 2020
 
 @author: Kamil
 """
-import numpy as np
+
 class MorseCodeDecoder():
     
     def __init__(self):
-        # Khởi tạo cây nhị phân
+        # Initialize binary tree
         self.tree = MorseCodeBinaryTree()
         
-        # Các tham số thời gian
+        # Definie Timinings
         self.nSamplesDotDuration = 10
         self.nSamplesMinDashDuration = 16
         self.nSamplesMaxDashDuration = 35
         self.nSamplesErrorMargin = 4
 
-        # Chuỗi cho các dãy
+        # Define Strings for sequences
         self.sequence = ''
         self.morseSequence = ''
         self.decodedLetters = ''
         
-        # Các biến đếm
-        self.nSamplesBetweenPosNegPeakList = []
+        # Define Counters
+        self.nSamplesBetwenPosNegPeakList = []
         self.nSamplesBetweenPeaks = 0
         self.nSymbols = 0
         self.nSamplesLow = 0
         self.totalSampleCount = 0
 
-        # Ngưỡng
+        # Define thresholds
         self.posAmplitudeThreshold = 10
         self.negAmplitudeThreshold = -10
         self.pulseSettlingSamplecCnt = 5
         
-        # Cờ cho bộ nhận đỉnh
+        # Define Flags for peaks detector
         self.posPeakFlag = False
         self.negPeakFlag = False
         self.posPeakFound = False
         
-        # Lưu mẫu trước
+        # Sample Hold
         self.previousSample = 0
 
-        # Biến đếm thời gian lấy mẫu
+        # Variable for measuring sampling time
         self.timerStart = 0
         self.SamplingTimerCounter = 0
         self.nSamplesLate = 0 
 
     def Detect(self, sample):
-        # Chờ 5 giây để bộ lọc ổn định
+        # Give 5 Seconds for filter to settle
         if (self.totalSampleCount >= 150):
             
-            # Phát hiện đỉnh dương - đèn bật
-            if np.any(sample > self.posAmplitudeThreshold) and not self.posPeakFlag:
+            # Detect positive peaks - light turning on
+            # If sample amplitude is above threshold and positive the peak hasn't been detected before
+            if( sample > self.posAmplitudeThreshold and self.posPeakFlag == False ):
+                # In the vicinity of the positive peak
                 self.posPeakFlag = True
-                # Nếu tín hiệu thấp đủ lâu để không phải là khoảng cách giữa các chữ cái
+                # If signal low for long enough to not be a space between letters
                 if( self.nSamplesLow >= 20):
+                    # If sequence is not empty
                     if (self.sequence):
-                        # Giải mã chữ cái
+                        # Decode Letter
                         self.decodedLetters += self.tree.DecodeString(self.sequence)
                         if (self.nSamplesLow >= 40):
                             self.decodedLetters += ' '
-                        # Cập nhật dãy Morse
+                        # Update Morse Sequence
                         self.morseSequence += self.sequence + ' '
-                        # Đặt lại dãy
+                        # Reset sequence 
                         self.sequence = ''
                     self.nSamplesLow = 0
                     
-            # Nếu biên độ vượt ngưỡng và mẫu trước lớn hơn thì đó phải là đỉnh
-            if( sample > self.posAmplitudeThreshold and self.previousSample > sample and self.posPeakFlag):
+            # If the amplitude exceeded threshold and previous sample was higher that must've been the peak
+            if( sample > self.posAmplitudeThreshold and self.previousSample > sample and self.posPeakFlag == True):
+                # Set flag
                 self.posPeakFound = True
                 
-            # Phát hiện đỉnh âm - đèn tắt
-            if( sample < self.negAmplitudeThreshold and not self.negPeakFlag ):
+            # Detect negative Peaks - light turning off
+            # If sample amplitude is below threshold and negative the peak hasn't been detected before
+            if( sample < self.negAmplitudeThreshold and self.negPeakFlag == False ):
+                # In the vicinity of the negative peak
                 self.negPeakFlag = True
      
-            # Nếu biên độ nhỏ hơn ngưỡng và mẫu trước nhỏ hơn, đó phải là đỉnh
-            if( sample < self.negAmplitudeThreshold and self.previousSample < sample and self.posPeakFlag and self.nSamplesBetweenPeaks >= self.pulseSettlingSamplecCnt):
-                # Đặt lại các cờ
+            # If the amplitude is below the threshold and previous sample was lower, that must've been the peak
+            if( sample < self.negAmplitudeThreshold and self.previousSample < sample and self.posPeakFlag == True and self.nSamplesBetweenPeaks >= self.pulseSettlingSamplecCnt):
+                # reset detector flags
                 self.posPeakFound = False
                 self.posPeakFlag = False
                 self.negPeakFlag = False
                 self.nSamplesBetwenPosNegPeakList.append(self.nSamplesBetweenPeaks)
-                # Tăng biến đếm đỉnh
+                # Increment peak counter
                 self.nSymbols += 1 
-                # Kiểm tra nếu đèn bật đủ lâu để là dấu gạch
+                # Check if light long enough for dash
                 if( self.nSamplesBetweenPeaks  >= self.nSamplesMinDashDuration ):
                     self.sequence += '-'
                     
-                # Kiểm tra nếu đèn bật đủ lâu để là dấu chấm
+                # Check if light long enough for dot
                 elif( self.nSamplesBetweenPeaks  >= (self.nSamplesDotDuration - self.nSamplesErrorMargin ) and self.nSamplesBetweenPeaks  <= (self.nSamplesDotDuration + self.nSamplesErrorMargin ) ):
                     self.sequence += '.'
                     
-                # Đặt lại hẹn giờ
+                # Reset timer
                 self.nSamplesBetweenPeaks = 0
         
-        # Nếu đèn bật được phát hiện
-        if(self.posPeakFound):
+        # If light on was detected
+        if(self.posPeakFound == True):
             self.nSamplesBetweenPeaks += 1
             self.nSamplesLow = 0
-            # Nếu đèn bật bật lâu hơn dấu gạch
+            # If light was is on longer than dash
             if(self.nSamplesBetweenPeaks > self.nSamplesMaxDashDuration ):
-                # Phát hiện sai, đặt lại các cờ & biến
+                # False detection, reset detector flags & variables
                 self.posPeakFound = False
                 self.posPeakFlag = False
                 self.negPeakFlag = False
                 self.nSamplesBetweenPeaks = 0
-        # Nếu đèn bật chưa được phát hiện
+        # If light on was not yet detected
         else:
-            # Im lặng tiếp tục
+            # Silence continues
             self.nSamplesLow += 1
         
-        # Lưu mẫu hiện tại để so sánh
+        # Hold current sample for comparison
         self.previousSample = sample
         self.totalSampleCount += 1
 
@@ -123,58 +129,58 @@ class MorseCodeBinaryTree(object):
 
     
     def __init__(self):
-        # Định nghĩa nút gốc
+        # Define Root node
         self.rootNode = Node("*")
         self.traverseNode = self.rootNode
 
-        # Tất cả các ký tự trong mã Morse được định nghĩa thuận tiện để điền theo cấp độ của cây nhị phân
+        # All characters in the morse code defined convinently for populating level by level of binary tree
         morseDictionary = "ETIANMSURWDKGOHVF*L*PJBXCYZQ**54*3***2**+****16=/*****7***8*90"
 
-        # Nút hiện tại
+        # Current Node
         currentParentNode = self.rootNode
-        # Danh sách nút
+        # Node list
         nextNodesPlaceHolder = []
 
-        # Điền cây nhị phân
-        # Đối với mỗi ký tự trong chuỗi từ điển
+        # Populate binary tree
+        # For each character in dictionary string
         for character in morseDictionary:
-            # Nếu không có đối tượng nút nào sau khi chấm (qua trái)
+            # If there is no node object resulting from dot (to the left)  
             if( currentParentNode.dot == None ):
-                # Chèn nút với giá trị sẽ tạo ra từ dấu chấm
-                 currentParentNode.dot = Node(character)
-            # Đã có một đối tượng nút qua trái nên chúng ta sẽ xử lý phía bên phải
+                # Insert node with value that is going to result from dot
+                currentParentNode.dot = Node(character)
+            # There is already an object to the left so take care of right side  
             else:
-                # Nếu không có đối tượng nút nào sau dấu gạch (qua phải)
+                # If there is no node object resulting from dash (to the right)  
                 if (currentParentNode.dash == None):
-                    # Chèn nút với giá trị sẽ tạo ra từ dấu gạch
+                    # Insert node with value that is going to result from dash
                     currentParentNode.dash = Node(character)
-                # Đã gán cả hai nút con
+                # Both children nodes have been assigned
                 else:
-                    # Thêm các nút vào danh sách
+                    # Append nodes to the list 
                     nextNodesPlaceHolder.append(currentParentNode.dot)
                     nextNodesPlaceHolder.append(currentParentNode.dash)
-                    # Loại bỏ nút đầu tiên từ người giữ chỗ để xử lý tiếp theo
-                    # tức là di chuyển qua cây
+                    # Remove the first node object from the place holder to process next
+                    # eseentially moving through the tree
                     currentParentNode = nextNodesPlaceHolder.pop(0)
-                    # Tạo nút mới dựa trên dấu chấm
+                    # Create new node resulting from dot
                     currentParentNode.dot = Node(character)
 
 
     """
-    Phương thức đi qua cây nhị phân mã Morse để giải mã toàn bộ chuỗi đầu vào
-    và trả về ký tự tương ứng.
+    Method which traverses morse code binary tree for the whole complete input string of dots and dashes
+    and returns character for that sequnce.
     """
     def DecodeString(self, morseCodeSequence):
 
-        # Bắt đầu từ nút gốc
+        # Start from root node
         currentNode = self.rootNode
         
-        # Đối với mỗi ký tự trong chuỗi đầu vào
+        # For each character in the input sequence
         for character in morseCodeSequence:
-            # Nếu là dấu chấm đi qua bên trái
-            if character == ".":
+            # If dot traverse to the left
+            if( character == "." ):
                 currentNode = currentNode.dot
-            # Ngược lại phải là dấu gạch, đi sang phải
+            # Otherwise must be a dash, go right
             else:
                 currentNode = currentNode.dash
 
@@ -182,38 +188,38 @@ class MorseCodeBinaryTree(object):
 
 
     """
-    Phương thức đi qua cây nhị phân mã Morse dựa trên đầu vào và trả về ký tự cho chuỗi nếu cờ được cung cấp.
+    Method which traverses morse code binary tree based on the input and returns character for the sequnce if flag is provided.
     """
     def ProcessNode(self, inputChar, endFlag):
 
-        # Nếu là dấu chấm, đi sang trái
+        # If dot traverse to the left
         if inputChar == ".":
-            if not self.traverseNode.left:
+            if( self.traverseNode.left == None):
                 return '#'
             else:
                 self.traverseNode = self.traverseNode.left
-        # Nếu là dấu gạch, đi sang phải
-        elif inputChar == "-":
-            if not self.traverseNode.right:
+        # If dash traverse to the right
+        elif (inputChar == "-"):
+            if( self.traverseNode.right == None):
                 return '#'
             else:
                 self.traverseNode = self.traverseNode.right
         
-        # Nếu chuỗi dấu chấm và dấu gạch đã kết thúc, trả về ký tự
-        if endFlag:
+        # If sequence of dots and dashes has ended return character
+        if (endFlag == True):
             self.traverseNode = self.rootNode
             return self.traverseNode.value
             
         
 """
-Đối tượng nút nhị phân
+Binary node object
 """
 class Node(object):
-    # Constructor
+    # Contstructor
     def __init__(self, char):
-        # Ký tự tương ứng với chuỗi
+        # Character corresponding to the sequence
         self.value = char
-        # Đối tượng nút con
+        # Child node objects
         self.dot = None
         self.dash = None
         
@@ -222,7 +228,7 @@ def unitTest():
     
     morseDecoder = MorseCodeDecoder()
     
-    # Kiểm tra chuỗi toàn bộ cho bảng chữ cái
+    # Test whole string sequence for the alphabet 
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+=/"
     alphabetInMorse = [  ".-" , "-..." , "-.-." , "-.." , "." , "..-." , "--." , "...." , ".." , ".---" , "-.-" , ".-.." , "--" , "-." , "---" , ".--." , "--.-" , ".-." , "..." , "-" , "..-" , "...-" , ".--" , "-..-" , "-.--" , "--.." , "-----" , ".----" , "..---" , "...--" , "....-" , "....." , "-...." , "--..." , "---.." , "----." , ".-.-." , "-...-" , "-..-."]
     nCharacterInAlphabet = 39
@@ -231,7 +237,7 @@ def unitTest():
     print("INPUT VALUES: " + alphabet )
     for x in range(nCharacterInAlphabet):
         decodedCharacter = morseDecoder.tree.DecodeString(alphabetInMorse[x])
-        if alphabet[x] == decodedCharacter:
+        if( alphabet[x] == decodedCharacter):
             print(decodedCharacter)
         else:
             print("MORSE DECODER IS NOT OPERATING CORRECTLY!")
@@ -245,4 +251,3 @@ def unitTest():
 if __name__ == "__main__":
     
     unitTest()
-               

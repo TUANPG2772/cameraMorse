@@ -1,55 +1,47 @@
 import cv2
+import numpy as np
+import threading
 
-class Webcam2rgb:
-    def __init__(self):
-        self.device = 0  # Sử dụng camera mặc định
-        self.width = 640
-        self.height = 480
-        self.cap = cv2.VideoCapture(self.device, cv2.CAP_V4L2)
-        if not self.cap.isOpened():
-            raise Exception("Could not open video device")
+class Webcam2rgb():
 
-        # Đặt độ phân giải cho camera
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self.cap.set(cv2.CAP_PROP_FPS, 15)
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # Đặt FOURCC thành MJPG
-
-    def start(self, callback, width=None, height=None, fps=None):
+    def start(self, callback, cameraNumber=0, width=None, height=None, fps=None):
         self.callback = callback
-        self.running = True
-        self._read_frames()
+        try:
+            self.cam = cv2.VideoCapture(cameraNumber)  # Use default camera
+            if not self.cam.isOpened():
+                print('Opening camera')
+                self.cam.open(cameraNumber)
+
+            if width:
+                self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            if height:
+                self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            if fps:
+                self.cam.set(cv2.CAP_PROP_FPS, fps)
+                
+            self.running = True
+            self.thread = threading.Thread(target=self.calc_BRG)
+            self.thread.start()
+            self.ret_val = True
+        except:
+            self.running = False
+            self.ret_val = False
 
     def stop(self):
         self.running = False
-        self.cap.release()
-        cv2.destroyAllWindows()
+        self.thread.join()
 
-    def _read_frames(self):
+    def calc_BRG(self):
         while self.running:
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Error: Could not read frame")
-                self.callback(False, None, None)
-                continue
-
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Sử dụng COLOR_BGR2RGB nếu FOURCC là MJPG
-            self.callback(True, frame_rgb, frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                self.stop()
-                break
+            try:
+                self.ret_val, img = self.cam.read()
+                if not self.ret_val:
+                    continue
+                h, w, c = img.shape
+                brg = img[int(h / 2), int(w / 2)]
+                self.callback(self.ret_val, brg)
+            except:
+                self.running = False
 
     def cameraFs(self):
-        return self.cap.get(cv2.CAP_PROP_FPS)
-
-# Ví dụ callback function để kiểm tra
-def frame_callback(success, frame_rgb, frame):
-    if success:
-        print("Frame received")
-        cv2.imshow("Frame", frame_rgb)
-    else:
-        print("No frame received")
-
-# init camera
-#camera = Webcam2rgb()
-#camera.start(frame_callback)
+        return self.cam.get(cv2.CAP_PROP_FPS)
